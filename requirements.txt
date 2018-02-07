@@ -1,0 +1,10 @@
+cfscrape
+fake-useragent
+scrapy-fake-useragent
+scrapy-proxies
+beautifulsoup4
+jmespath
+pendulum
+pytz
+pymongo
+scrapy
