@@ -22,7 +22,7 @@ class GeocachingSpider(scrapy.Spider):
     start_urls = ['http://www.geocaching.com/account/login']
 
     custom_settings = {
-        'HTTPPROXY_ENABLED': True
+        'HTTPPROXY_ENABLED': False
     }
 
     allowed_domains = ['geocaching.com']
@@ -64,7 +64,7 @@ class GeocachingSpider(scrapy.Spider):
 
         return scrapy.FormRequest.from_response(
             response,
-            meta={'proxy': 'http://localhost:8888'},
+            #meta={'proxy': 'http://localhost:8888'},
             formxpath="//form[@id='aspnetForm']",
             formdata={
                 'ctl00$ContentBody$uxTaxonomies':'9a79e6ce-3344-409c-bbe9-496530baf758',
@@ -78,7 +78,7 @@ class GeocachingSpider(scrapy.Spider):
 
         return scrapy.FormRequest.from_response(
             response,
-            meta={'proxy': 'http://localhost:8888'},
+            #meta={'proxy': 'http://localhost:8888'},
             formxpath="//form[@id='aspnetForm']",
             formdata={
                 'ctl00$ContentBody$uxTaxonomies': '9a79e6ce-3344-409c-bbe9-496530baf758',
@@ -91,10 +91,12 @@ class GeocachingSpider(scrapy.Spider):
     ## 421 haute normandie
     ## 414 basse normandie
     def parse_cacheState(self, response):
+        geocaches = []
 
         return scrapy.FormRequest.from_response(
             response,
-            meta={'proxy': 'http://localhost:8888'},
+            #meta={'proxy': 'http://localhost:8888', 'geocaches':geocaches },
+            meta={ 'geocaches': geocaches},
             formxpath="//form[@id='aspnetForm']",
             formdata={
                 'ctl00$ContentBody$uxTaxonomies': '9a79e6ce-3344-409c-bbe9-496530baf758',
@@ -120,7 +122,7 @@ class GeocachingSpider(scrapy.Spider):
 
         geocaches = []
 
-        response.meta['viewstate'] = self.get_viewstate(response)
+        #response.meta['viewstate'] = self.get_viewstate(response)
 
         tdList = response.xpath('(//td[@class="Merge"][2])')
 
@@ -128,7 +130,7 @@ class GeocachingSpider(scrapy.Spider):
 
             link = td.xpath('a//@href')
             name = td.xpath('a/span/text()')
-            # print("links = ", link.extract())
+            print("links = ", link.extract())
             # print("name = ", name.extract())
 
             geocache = GeoCacheItem()
@@ -137,7 +139,11 @@ class GeocachingSpider(scrapy.Spider):
 
             p = urlparse(geocache["url"])
             geocache["code"] = p.path.split("/")[2].split("_")[0]
-            geocache["page"] = response.meta['page']
+
+            if "page" not in response.meta.keys():
+                geocache["page"] = 1
+            else:
+                geocache["page"] = response.meta['page'][0]
             geocaches.append(geocache)
 
         return geocaches
@@ -155,73 +161,88 @@ class GeocachingSpider(scrapy.Spider):
 
     def parse_pages(self,response):
 
+        viewstate = self.get_viewstate(response)
+
+        geocaches = response.meta["geocaches"]
+        geocaches.append(self.parse_cachesList(response))
+
         if "page" not in response.meta.keys():
-            ## EXTRACT NUMBER OF PAGES
             links = response.xpath('//td[@class="PageBuilderWidget"]/span/b[3]//text()')
 
-            numberOfPage = int(links.extract_first())
-            #pages = list(range(1, (numberOfPage + 1)))
-            #pages = list(range(10, 15))
-            #random.shuffle(pages)
-            response.meta['page'] = 2
-            viewstate = self.get_viewstate(response)
+            numberOfPage = 13 #int(links.extract_first())
+            response.meta['page'] = [1,numberOfPage]
 
-        if page == 1:
-
-            result = scrapy.FormRequest.from_response(
+            yield scrapy.FormRequest.from_response(
                 response,
-                meta={'proxy': 'http://localhost:8888', 'page': page,'viewstate':viewstate},
+                #meta={'proxy': 'http://localhost:8888', 'page': response.meta['page'], 'geocaches': geocaches},
+                meta={ 'page': response.meta['page'], 'geocaches': geocaches},
                 formname="aspnetForm",
-                #meta={'page':page},
                 formxpath="//form[@id='aspnetForm']",
-                formdata={'recaptcha_challenge_field':None,
+                formdata={'recaptcha_challenge_field': None,
                           'recaptcha_response_field': None,
-                          'ctl00$ContentBody$chkHighlightBeginnerCaches':None,
-                          'ctl00$ContentBody$chkAll':None,
-                          '__EVENTTARGET':None,
+                          'ctl00$ContentBody$chkHighlightBeginnerCaches': None,
+                          'ctl00$ContentBody$chkAll': None,
+                          '__EVENTTARGET': None,
                           '__EVENTARGUMENT': None},
                 dont_click=True,
-                callback=self.parse_cachesList,
+                callback=self.parse_pages,
                 dont_filter=True
-                )
-        elif page == 11:
-            result = scrapy.FormRequest.from_response(
-                response,
-                meta={'proxy': 'http://localhost:8888','page': page},
-                formname="aspnetForm",
-                #meta={'page': page},
-                formxpath="//form[@id='aspnetForm']",
-                formdata={'recaptcha_challenge_field':None,
-                          'recaptcha_response_field': None,
-                          'ctl00$ContentBody$chkHighlightBeginnerCaches':None,
-                          'ctl00$ContentBody$chkAll': None,
-                          '__EVENTTARGET': 'ctl00$ContentBody$pgrTop$ctl06', },
-                dont_click=True,
-                callback=self.parse_cachesList,
-                dont_filter=True,
-                priority=(21 - page)
             )
+        else:
 
-        else :
-            result = scrapy.FormRequest.from_response(
-                response,
-                meta={'proxy': 'http://localhost:8888', 'page': page},
-                formname="aspnetForm",
-                #meta={'page': page},
-                formxpath="//form[@id='aspnetForm']",
-                formdata={'recaptcha_challenge_field':None,
-                          'recaptcha_response_field': None,
-                          'ctl00$ContentBody$chkHighlightBeginnerCaches':None,
-                          'ctl00$ContentBody$chkAll':None,
-                          '__EVENTTARGET':'ctl00$ContentBody$pgrTop$lbGoToPage_'+str(page),},
-                dont_click=True,
-                callback=self.parse_cachesList,
-                dont_filter=True,
-                priority=(21-page)
+            response.meta['page'][0] += 1
+            print("YIELD Page : ", response.meta['page'])
+            print("MODULO = ", (response.meta['page'][0] - 1) % 10)
+            if response.meta['page'][0] == response.meta['page'][1]:
+                print("GEOCACHES = ",response.meta['geocaches'])
+                return response.meta['geocaches']
+
+            if (response.meta['page'][0] - 1) % 10 == 0:
+
+                yield scrapy.FormRequest.from_response(
+                    response,
+                    meta={ 'page': response.meta['page'], 'geocaches': geocaches},
+                    #meta={'proxy': 'http://localhost:8888', 'page': response.meta['page'], 'geocaches': geocaches},
+                    formname="aspnetForm",
+                    # meta={'page': page},
+                    formxpath="//form[@id='aspnetForm']",
+                    formdata={'recaptcha_challenge_field': None,
+                              'recaptcha_response_field': None,
+                              'ctl00$ContentBody$chkHighlightBeginnerCaches': None,
+                              'ctl00$ContentBody$chkAll': None,
+                              '__EVENTTARGET': 'ctl00$ContentBody$pgrBottom$ctl06', },
+                    dont_click=True,
+                    callback=self.parse_pages,
+                    dont_filter=True
+                    #priority=(21 - response.meta['page'][0])
                 )
 
-        print ("RUN > ", 'ctl00$ContentBody$pgrTop$lbGoToPage_'+str(page))
-        yield result
+            else:
+
+                yield scrapy.FormRequest.from_response(
+                    response,
+                    meta={'page': response.meta['page'], 'geocaches':geocaches},
+                    #meta={'proxy': 'http://localhost:8888', 'page': response.meta['page'], 'geocaches':geocaches},
+                    formname="aspnetForm",
+                    # meta={'page': page},
+                    formxpath="//form[@id='aspnetForm']",
+                    formdata={'recaptcha_challenge_field': None,
+                              'recaptcha_response_field': None,
+                              'ctl00$ContentBody$chkHighlightBeginnerCaches': None,
+                              'ctl00$ContentBody$chkAll': None,
+                              '__EVENTTARGET': 'ctl00$ContentBody$pgrTop$lbGoToPage_' + str(response.meta['page'][0]), },
+                    dont_click=True,
+                    callback=self.parse_pages,
+                    dont_filter=True
+                    #priority=(21 - response.meta['page'][0])
+                )
+
+
+        #print ("RUN > ", 'ctl00$ContentBody$pgrTop$lbGoToPage_'+str(response.meta['page'][0]))
+        #yield result
+
+
+
 
     def __init__(self, aDate = pendulum.today()):
         super(GeocachingSpider, self).__init__()
