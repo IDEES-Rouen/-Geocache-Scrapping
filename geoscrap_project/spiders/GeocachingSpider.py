@@ -91,12 +91,10 @@ class GeocachingSpider(scrapy.Spider):
     ## 421 haute normandie
     ## 414 basse normandie
     def parse_cacheState(self, response):
-        geocaches = []
 
         return scrapy.FormRequest.from_response(
             response,
-            #meta={'proxy': 'http://localhost:8888', 'geocaches':geocaches },
-            meta={ 'geocaches': geocaches},
+            #meta={'proxy': 'http://localhost:8888'},
             formxpath="//form[@id='aspnetForm']",
             formdata={
                 'ctl00$ContentBody$uxTaxonomies': '9a79e6ce-3344-409c-bbe9-496530baf758',
@@ -120,7 +118,7 @@ class GeocachingSpider(scrapy.Spider):
 
         # Update Meta
 
-        geocaches = []
+        geocaches = {}
 
         #response.meta['viewstate'] = self.get_viewstate(response)
 
@@ -128,23 +126,26 @@ class GeocachingSpider(scrapy.Spider):
 
         for td in tdList:
 
+            geocache={}
+
             link = td.xpath('a//@href')
             name = td.xpath('a/span/text()')
             print("links = ", link.extract())
             # print("name = ", name.extract())
 
-            geocache = GeoCacheItem()
+            #geocache = GeoCacheItem()
             geocache["url"] = link.extract_first()
             geocache["name"] = name.extract_first()
 
             p = urlparse(geocache["url"])
-            geocache["code"] = p.path.split("/")[2].split("_")[0]
+            code = p.path.split("/")[2].split("_")[0]
 
             if "page" not in response.meta.keys():
                 geocache["page"] = 1
             else:
                 geocache["page"] = response.meta['page'][0]
-            geocaches.append(geocache)
+
+            geocaches[code] = geocache
 
         return geocaches
 
@@ -163,19 +164,18 @@ class GeocachingSpider(scrapy.Spider):
 
         viewstate = self.get_viewstate(response)
 
-        geocaches = response.meta["geocaches"]
-        geocaches.append(self.parse_cachesList(response))
+        geocaches = self.parse_cachesList(response)
 
-        if "page" not in response.meta.keys():
-            links = response.xpath('//td[@class="PageBuilderWidget"]/span/b[3]//text()')
+        if 'page' not in response.meta.keys():
+            infoPage = response.xpath('//td[@class="PageBuilderWidget"]/span/b[3]//text()')
 
-            numberOfPage = 13 #int(links.extract_first())
-            response.meta['page'] = [1,numberOfPage]
+            numberOfPage = 25 #int(links.extract_first())
+            response.meta['page'] = [1, numberOfPage]
 
             yield scrapy.FormRequest.from_response(
                 response,
                 #meta={'proxy': 'http://localhost:8888', 'page': response.meta['page'], 'geocaches': geocaches},
-                meta={ 'page': response.meta['page'], 'geocaches': geocaches},
+                meta={ 'page': response.meta['page']},
                 formname="aspnetForm",
                 formxpath="//form[@id='aspnetForm']",
                 formdata={'recaptcha_challenge_field': None,
@@ -188,20 +188,21 @@ class GeocachingSpider(scrapy.Spider):
                 callback=self.parse_pages,
                 dont_filter=True
             )
+
         else:
 
             response.meta['page'][0] += 1
             print("YIELD Page : ", response.meta['page'])
             print("MODULO = ", (response.meta['page'][0] - 1) % 10)
+
             if response.meta['page'][0] == response.meta['page'][1]:
-                print("GEOCACHES = ",response.meta['geocaches'])
-                return response.meta['geocaches']
+                return
 
             if (response.meta['page'][0] - 1) % 10 == 0:
 
                 yield scrapy.FormRequest.from_response(
                     response,
-                    meta={ 'page': response.meta['page'], 'geocaches': geocaches},
+                    meta={ 'page': response.meta['page']},
                     #meta={'proxy': 'http://localhost:8888', 'page': response.meta['page'], 'geocaches': geocaches},
                     formname="aspnetForm",
                     # meta={'page': page},
@@ -218,10 +219,11 @@ class GeocachingSpider(scrapy.Spider):
                 )
 
             else:
+                print("ctl00$ContentBody$pgrTop$lbGoToPage_"+ str(response.meta['page'][0]))
 
                 yield scrapy.FormRequest.from_response(
                     response,
-                    meta={'page': response.meta['page'], 'geocaches':geocaches},
+                    meta={'page': response.meta['page']},
                     #meta={'proxy': 'http://localhost:8888', 'page': response.meta['page'], 'geocaches':geocaches},
                     formname="aspnetForm",
                     # meta={'page': page},
@@ -237,7 +239,8 @@ class GeocachingSpider(scrapy.Spider):
                     #priority=(21 - response.meta['page'][0])
                 )
 
-
+            print("GEOCACHES = ", geocaches)
+            yield geocaches
         #print ("RUN > ", 'ctl00$ContentBody$pgrTop$lbGoToPage_'+str(response.meta['page'][0]))
         #yield result
 
