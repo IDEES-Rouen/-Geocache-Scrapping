@@ -88,6 +88,7 @@ DOWNLOADER_MIDDLEWARES = {
 # See http://scrapy.readthedocs.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
     'geoscrap_project.pipelines.MongoPipeline': 300,
+    'geoscrap_project.pipelines.JsonPipeline': 200,
 }
 
 #HTTP_PROXY = 'http://127.0.0.1:8118'

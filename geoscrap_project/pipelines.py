@@ -2,6 +2,7 @@
 
 import pymongo
 from scrapy import log
+from scrapy.exporters import JsonLinesItemExporter
 
 class MongoPipeline(object):
 
@@ -28,4 +29,19 @@ class MongoPipeline(object):
     def process_item(self, item, spider):
         log.msg("Item wrote to MongoDB database")
         self.db[self.collection_name].insert(dict(item))
+        return item
+
+
+class JsonPipeline(object):
+    def __init__(self):
+        self.file = open("geocaches.json", 'wb')
+        self.exporter = JsonLinesItemExporter(self.file, encoding='utf-8', ensure_ascii=False)
+        self.exporter.start_exporting()
+
+    def close_spider(self, spider):
+        self.exporter.finish_exporting()
+        self.file.close()
+
+    def process_item(self, item, spider):
+        self.exporter.export_item(item)
         return item

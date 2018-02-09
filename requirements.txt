@@ -8,3 +8,4 @@ pendulum
 pytz
 pymongo
 scrapy
+pandas

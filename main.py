@@ -8,7 +8,7 @@ import subprocess
 
 #https://doc.scrapy.org/en/latest/topics/practices.html
 process = CrawlerProcess(get_project_settings())
-process.crawl('geocaching')
+process.crawl('geocachingExtractor')
 
 process.start()
 
