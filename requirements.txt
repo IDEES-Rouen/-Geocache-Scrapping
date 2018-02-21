@@ -9,3 +9,5 @@ pytz
 pymongo
 scrapy
 pandas
+pyproj
+psycopg2

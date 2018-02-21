@@ -8,30 +8,29 @@ import json
 import jmespath
 from fake_useragent import UserAgent
 import pendulum
-from pathlib import Path
 import random
 from urllib.parse import urlparse
-import pandas as pd
+from urllib import parse
+from pyproj import Proj
+
 import re
+
+# TODO : récupération de l'inventaire des travel bugs sur la droite
 
 class GeocachingSpider(scrapy.Spider):
     name = "geocachingExtractor"
 
-    p = Path('.').resolve()
-    geocacheFile = p / 'data' / 'geocaches.json'
-
-    allowed_domains = ['geocaching.com']
-
-    pd.set_option('display.width', 1000)
-
-    df = pd.read_json(geocacheFile.as_uri(), orient='index', lines=True).stack().reset_index(level=1, drop=True)
-    df = df.apply(pd.Series, index=df[0].keys())
-
-        #start_urls = [url.strip() for url in f.readlines()]
-        #f.close()
-    print(df["url"].tolist())
-
     start_urls = ['http://www.geocaching.com/account/login']
+
+    custom_settings = {
+        'ITEM_PIPELINES': {
+            'geoscrap_project.pipelines.FullInfoJsonPipeline': 200,
+        }
+    }
+
+    def __init__(self, urls):
+        super(GeocachingSpider, self).__init__()
+        self.urls = urls
 
     def parse(self, response):
 
@@ -46,7 +45,7 @@ class GeocachingSpider(scrapy.Spider):
             response,
             meta=meta,
             formxpath="//form[@action='/account/login']",
-            formdata={'__RequestVerificationToken':token,'Username': 'dumbuser', 'Password': 'stackoverflow'},
+            formdata={'__RequestVerificationToken':token,'Username': 'reyman64', 'Password': 'H67y9!CSJw'},
             callback=self.after_login
         )
 
@@ -54,44 +53,68 @@ class GeocachingSpider(scrapy.Spider):
 
         meta = response.meta
 
-        # go to nearest page
-        return scrapy.Request(url="https://www.geocaching.com/geocache/GC7AE50_mont-gargan",
+        for url in self.urls:
+            yield scrapy.Request(url=url,
                               meta=meta,
                               callback=self.parse_cacheInfo,
                               dont_filter=True)
 
 
     def parse_cacheInfo(self, response):
-        texte = response.xpath('//div[@class="UserSuppliedContent"]').extract()
-        print(texte)
-        code = response.xpath('//span[@class="CoordInfoCode"]/text()').extract_first()
-        print(code)
 
-        location = response.xpath('//span[@id="uxLatLon"]/text()').extract_first()
-        print(location)
+        cache = GeoCacheItem()
 
-        cacheby = response.xpath('//div[@id="ctl00_ContentBody_mcd1"]/a/text()').extract_first()
-        print(cacheby)
+        cache["content"] = response.xpath('//div[@class="UserSuppliedContent"]').extract()
+        cache["code"] = response.xpath('//span[@class="CoordInfoCode"]/text()').extract_first()
+        cache["location"] = response.xpath('//span[@id="uxLatLon"]/text()').extract_first()
 
-        cachetype = response.xpath('//div[@id="cacheDetails"]/p/a/img/@title').extract_first()
-        print(cachetype)
+        cache["nom"] = response.xpath('//span[@id="ctl00_ContentBody_CacheName"]/text()').extract_first()
+        cache["searchLocation"] = response.xpath('//span[@id="ctl00_ContentBody_Location"]/text()').extract_first()
+        cache["auteur"] = response.xpath('//div[@id="ctl00_ContentBody_mcd1"]/a/text()').extract_first()
 
-        cachedate = response.xpath('//div[@id="ctl00_ContentBody_mcd2"]/text()').extract_first()
-        cachedate = re.search("([0-9]{2}\/[0-9]{2}\/[0-9]{4})", cachedate).group(0)
-        print(cachedate)
+        auteurUID = response.xpath('//div[@id="ctl00_ContentBody_mcd1"]/a/@href').extract_first()
 
-        cacheDifficultyStar = response.xpath('//span[@id="ctl00_ContentBody_uxLegendScale"]/img/@alt').extract_first()
+        UTMLocation = response.xpath('//span[@id="ctl00_ContentBody_LocationSubPanel"]/text()').extract_first()
+        UTMLocation = " ".join(UTMLocation.split())
 
-        cacheTerrainStar = response.xpath('//span[@id="ctl00_ContentBody_Localize12"]/img/@alt').extract_first()
+        UTMsplitted = UTMLocation.split(" ")
 
-        print(cacheDifficultyStar)
-        print(cacheTerrainStar)
+        zone = UTMsplitted[1][:-1]
+        UTMx  =UTMsplitted[3]
+        UTMy = UTMsplitted[5]
 
-        cachesize = response.xpath('//span[@class="minorCacheDetails"]/img/@alt').extract_first()
-        print(cachesize)
+        myProj = Proj("+proj=utm +zone=" + \
+                      zone + ", +north +ellps=WGS84 +datum=WGS84 +units=m +no_defs")
 
-        galleryURL = response.xpath('//*[contains(concat(" ", normalize-space(@class), " "), "CacheDetailNavigation NoPrint")]/ul/li/a/@href').extract_first()
-        print(galleryURL)
+        Lon, Lat = myProj(UTMx, UTMy, inverse=True)
+
+        print("**********")
+        print("ZONE = ",zone )
+        print("UTMx = ",Lon )
+        print("UTMy = ",Lat )
+        print("**********")
+
+        cache["locationWGSLon"] = Lon
+        cache["locationWGSLat"] = Lat
+
+        p = urlparse(auteurUID)
+        cache["auteurUID"] = parse.parse_qs(p.query)['guid'][0]
+
+        cache["type"] = response.xpath('//div[@id="cacheDetails"]/p/a/img/@title').extract_first()
+        date = response.xpath('//div[@id="ctl00_ContentBody_mcd2"]/text()').extract_first()
+        cache["cachedate"] = re.search("([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{4})", date).group(0)
+
+        difficulte = response.xpath('//span[@id="ctl00_ContentBody_uxLegendScale"]/img/@alt').extract_first()
+        cache["difficulte"] = re.search(r'\b\d+([\.,]\d+)?',difficulte).group(0)
+
+        terrain = response.xpath('//span[@id="ctl00_ContentBody_Localize12"]/img/@alt').extract_first()
+        cache["terrain"] = re.search(r'\b\d+([\.,]\d+)?',terrain).group(0)
+
+        taille = response.xpath('//span[@class="minorCacheDetails"]/img/@alt').extract_first()
+        cache["taille"] = taille.split(" ")[1]
+
+        cache["urlGallerie"] = response.xpath('//*[contains(concat(" ", normalize-space(@class), " "), "CacheDetailNavigation NoPrint")]/ul/li/a/@href').extract_first()
+
 
         cacheAttributesList = response.xpath('//div[@class="WidgetBody"]/img/@src').extract()
         cacheAttribute = []
@@ -100,7 +123,7 @@ class GeocachingSpider(scrapy.Spider):
             codeAttribute = p.path.split("/")[3].split(".")[0]
             cacheAttribute.append(codeAttribute)
 
-        print(cacheAttribute)
+        cache["cacheAttributs"] = cacheAttribute
 
         logsAttributesList = response.xpath('//span[@id="ctl00_ContentBody_lblFindCounts"]/p')
         logsList = []
@@ -113,8 +136,9 @@ class GeocachingSpider(scrapy.Spider):
         for number,attribute in zip(logsNumber,attributes):
             logsList.append({attribute.extract().replace(" ","_"):number})
 
-        print(logsList)
+        cache["logsAttributs"] = logsList
 
         numberOfLogs = response.xpath('//*[contains(concat(" ", normalize-space(@class), " "), "InformationWidget Clear")]/h3').extract()
-        numberOfLogs = re.findall(r'\b\d+\b',str(numberOfLogs))
-        print(numberOfLogs)
+        cache["logsNombre"] = re.findall(r'\b\d+\b',str(numberOfLogs))[0]
+
+        yield cache

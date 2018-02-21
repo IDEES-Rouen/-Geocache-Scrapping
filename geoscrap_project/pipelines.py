@@ -3,6 +3,8 @@
 import pymongo
 from scrapy import log
 from scrapy.exporters import JsonLinesItemExporter
+import os
+from pathlib import Path
 
 class MongoPipeline(object):
 
@@ -32,9 +34,28 @@ class MongoPipeline(object):
         return item
 
 
+class FullInfoJsonPipeline(object):
+    def __init__(self):
+        print("FullInfoJsonPipeline")
+        p = Path('.') / 'data' / 'fullGeochache.json'
+
+        self.file = p.open('wb')
+        self.exporter = JsonLinesItemExporter(self.file, encoding='utf-8', ensure_ascii=False)
+        self.exporter.start_exporting()
+
+    def close_spider(self, spider):
+        self.exporter.finish_exporting()
+        self.file.close()
+
+    def process_item(self, item, spider):
+        self.exporter.export_item(item)
+        return item
+
 class JsonPipeline(object):
     def __init__(self):
-        self.file = open("geocaches.json", 'wb')
+        print("JsonPipeline")
+        p = Path('.') / 'data' / 'geocaches.json'
+        self.file = p.open('wb')
         self.exporter = JsonLinesItemExporter(self.file, encoding='utf-8', ensure_ascii=False)
         self.exporter.start_exporting()
 

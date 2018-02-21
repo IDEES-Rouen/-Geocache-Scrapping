@@ -22,8 +22,13 @@ class GeocachingSpider(scrapy.Spider):
     start_urls = ['http://www.geocaching.com/account/login']
 
     custom_settings = {
+        'ITEM_PIPELINES': {
+            'geoscrap_project.pipelines.JsonPipeline': 200,
+        },
         'HTTPPROXY_ENABLED': False
+
     }
+
 
     allowed_domains = ['geocaching.com']
     ua = UserAgent()
@@ -37,12 +42,11 @@ class GeocachingSpider(scrapy.Spider):
         # https://stackoverflow.com/questions/34076989/python-scrapy-login-authentication-spider-issue
         token = response.css('input[name=__RequestVerificationToken]::attr(value)').extract()[0]
 
-
         return scrapy.FormRequest.from_response(
             response,
             meta=meta,
             formxpath="//form[@action='/account/login']",
-            formdata={'__RequestVerificationToken':token,'Username': 'dumbuser', 'Password': 'stackoverflow'},
+            formdata={'__RequestVerificationToken':token,'Username': 'reyman64', 'Password': 'H67y9!CSJw'},
             callback=self.after_login
         )
 
@@ -100,7 +104,7 @@ class GeocachingSpider(scrapy.Spider):
                 'ctl00$ContentBody$uxTaxonomies': '9a79e6ce-3344-409c-bbe9-496530baf758',
                 'ctl00$ContentBody$LocationPanel1$ddSearchType': 'SC',
                 'ctl00$ContentBody$LocationPanel1$CountryStateSelector1$selectCountry': '73',
-                'ctl00$ContentBody$LocationPanel1$CountryStateSelector1$selectState': '421',
+                'ctl00$ContentBody$LocationPanel1$CountryStateSelector1$selectState': '414',
                 'ctl00$ContentBody$LocationPanel1$btnLocale': 'Recherche+de+géocaches'},
             callback=self.parse_pages
         )
@@ -125,15 +129,12 @@ class GeocachingSpider(scrapy.Spider):
         tdList = response.xpath('(//td[@class="Merge"][2])')
 
         for td in tdList:
-
             geocache={}
-
             link = td.xpath('a//@href')
             name = td.xpath('a/span/text()')
             print("links = ", link.extract())
             # print("name = ", name.extract())
 
-            #geocache = GeoCacheItem()
             geocache["url"] = link.extract_first()
             geocache["name"] = name.extract_first()
 
@@ -141,8 +142,10 @@ class GeocachingSpider(scrapy.Spider):
             code = p.path.split("/")[2].split("_")[0]
 
             if "page" not in response.meta.keys():
+                print("PAGE NOT IN RESPONSE")
                 geocache["page"] = 1
             else:
+                print("PAGE IN RESPONSE")
                 geocache["page"] = response.meta['page'][0]
 
             geocaches[code] = geocache
@@ -162,14 +165,15 @@ class GeocachingSpider(scrapy.Spider):
 
     def parse_pages(self,response):
 
+        print("META KEY = ", response.meta.keys())
         viewstate = self.get_viewstate(response)
 
         geocaches = self.parse_cachesList(response)
 
         if 'page' not in response.meta.keys():
             infoPage = response.xpath('//td[@class="PageBuilderWidget"]/span/b[3]//text()')
-
-            numberOfPage = 25 #int(links.extract_first())
+            print("PAGE NOT IN RESPONSE META KEY")
+            numberOfPage = int(infoPage.extract_first())
             response.meta['page'] = [1, numberOfPage]
 
             yield scrapy.FormRequest.from_response(
@@ -191,12 +195,11 @@ class GeocachingSpider(scrapy.Spider):
 
         else:
 
-            response.meta['page'][0] += 1
-            print("YIELD Page : ", response.meta['page'])
-            print("MODULO = ", (response.meta['page'][0] - 1) % 10)
-
-            if response.meta['page'][0] == response.meta['page'][1]:
+            if response.meta['page'][0] > response.meta['page'][1]:
                 return
+
+            print("NEXT Page : ", response.meta['page'])
+            response.meta['page'][0] += 1
 
             if (response.meta['page'][0] - 1) % 10 == 0:
 
@@ -239,12 +242,10 @@ class GeocachingSpider(scrapy.Spider):
                     #priority=(21 - response.meta['page'][0])
                 )
 
-            print("GEOCACHES = ", geocaches)
-            yield geocaches
+        print("GEOCACHES = ", geocaches)
+        yield geocaches
         #print ("RUN > ", 'ctl00$ContentBody$pgrTop$lbGoToPage_'+str(response.meta['page'][0]))
         #yield result
-
-
 
 
     def __init__(self, aDate = pendulum.today()):

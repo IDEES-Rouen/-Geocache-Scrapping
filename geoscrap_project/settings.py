@@ -31,6 +31,8 @@ CONCURRENT_REQUESTS = 1
 # See http://scrapy.readthedocs.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
 DOWNLOAD_DELAY = 3
+RANDOMIZE_DOWNLOAD_DELAY = True
+
 # The download delay setting will honor only one of:
 #CONCURRENT_REQUESTS_PER_DOMAIN = 16
 #CONCURRENT_REQUESTS_PER_IP = 16
@@ -69,7 +71,6 @@ RETRY_HTTP_CODES = [500, 503, 504, 400, 403, 404, 408]
 
 RANDOM_UA_PER_PROXY = True
 
-
 DOWNLOADER_MIDDLEWARES = {
     'scrapy.downloadermiddlewares.useragent.UserAgentMiddleware': None,
     'scrapy.downloadermiddlewares.httpcompression.HttpCompressionMiddleware': 810,
@@ -86,10 +87,9 @@ DOWNLOADER_MIDDLEWARES = {
 
 # Configure item pipelines
 # See http://scrapy.readthedocs.org/en/latest/topics/item-pipeline.html
-ITEM_PIPELINES = {
-    'geoscrap_project.pipelines.MongoPipeline': 300,
-    'geoscrap_project.pipelines.JsonPipeline': 200,
-}
+# ITEM_PIPELINES = {
+#     'geoscrap_project.pipelines.MongoPipeline': 300,
+# }
 
 #HTTP_PROXY = 'http://127.0.0.1:8118'
 #HTTPS_PROXY = 'http://127.0.0.1:8118'
