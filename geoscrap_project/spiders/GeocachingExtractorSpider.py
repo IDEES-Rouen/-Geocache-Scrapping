@@ -17,20 +17,28 @@ import re
 
 # TODO : récupération de l'inventaire des travel bugs sur la droite
 
-class GeocachingSpider(scrapy.Spider):
-    name = "geocachingExtractor"
+class GeocachingExtractorSpider(scrapy.Spider):
+    name = "GeocachingExtractorSpider"
 
-    start_urls = ['http://www.geocaching.com/account/login']
+    start_urls = ['http://www.geocaching.com/account/signin']
 
     custom_settings = {
+        'CONCURRENT_REQUESTS': '1',
+        'DOWNLOAD_DELAY': '3',
+        'COOKIES_ENABLED': True,
         'ITEM_PIPELINES': {
             'geoscrap_project.pipelines.FullInfoJsonPipeline': 200,
-        }
+        },
+        'HTTPERROR_ALLOWED_CODES': [301,302,404],
+        'HTTPPROXY_ENABLED': False,
+        'REDIRECT_ENABLED': True
     }
 
     def __init__(self, urls):
-        super(GeocachingSpider, self).__init__()
+        super(GeocachingExtractorSpider, self).__init__()
+        print(urls)
         self.urls = urls
+
 
     def parse(self, response):
 
@@ -44,8 +52,8 @@ class GeocachingSpider(scrapy.Spider):
         return scrapy.FormRequest.from_response(
             response,
             meta=meta,
-            formxpath="//form[@action='/account/login']",
-            formdata={'__RequestVerificationToken':token,'Username': 'reyman64', 'Password': 'H67y9!CSJw'},
+            formxpath="//form[@action='/account/signin']",
+            formdata={'__RequestVerificationToken':token,'UsernameOrEmail': 'reyman64', 'Password': 'H67y9!CSJw'},
             callback=self.after_login
         )
 

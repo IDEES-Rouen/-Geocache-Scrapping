@@ -19,14 +19,18 @@ class GeocachingSpider(scrapy.Spider):
     p = Path('.').resolve()
     dataFolder = p.parent.joinpath("/data")
 
-    start_urls = ['http://www.geocaching.com/account/login']
+    start_urls = ['https://www.geocaching.com/account/signin']
 
     custom_settings = {
+        'CONCURRENT_REQUESTS': '1',
+        'DOWNLOAD_DELAY': '2',
+        'COOKIES_ENABLED': True,
         'ITEM_PIPELINES': {
             'geoscrap_project.pipelines.JsonPipeline': 200,
         },
-        'HTTPPROXY_ENABLED': False
-
+        'HTTPERROR_ALLOWED_CODES': [301,302,404],
+        'HTTPPROXY_ENABLED': False,
+        'REDIRECT_ENABLED': True
     }
 
 
@@ -44,14 +48,15 @@ class GeocachingSpider(scrapy.Spider):
 
         return scrapy.FormRequest.from_response(
             response,
-            meta=meta,
-            formxpath="//form[@action='/account/login']",
-            formdata={'__RequestVerificationToken':token,'Username': 'reyman64', 'Password': 'H67y9!CSJw'},
+            meta = meta,
+            formxpath="//form[@action='/account/signin']",
+            formdata={'__RequestVerificationToken':token,'UsernameOrEmail': 'reyman64', 'Password': 'H67y9!CSJw'},
             callback=self.after_login
         )
 
     def after_login(self, response):
 
+        print(response)
         meta = response.meta
 
         # go to nearest page
@@ -65,7 +70,7 @@ class GeocachingSpider(scrapy.Spider):
 
     ## STEP 1 : SEARCH TYPE = SC
     def parse_cacheSearch(self,response):
-
+        print("TYPE OF SEARCH")
         return scrapy.FormRequest.from_response(
             response,
             #meta={'proxy': 'http://localhost:8888'},
@@ -79,7 +84,7 @@ class GeocachingSpider(scrapy.Spider):
 
     ## STEP 2 : SELECT COUNTRY
     def parse_cacheCountry(self, response):
-
+        print("COUNTRY SELECT")
         return scrapy.FormRequest.from_response(
             response,
             #meta={'proxy': 'http://localhost:8888'},
@@ -95,7 +100,7 @@ class GeocachingSpider(scrapy.Spider):
     ## 421 haute normandie
     ## 414 basse normandie
     def parse_cacheState(self, response):
-
+        print ("SELECT STATE NORMANDY")
         return scrapy.FormRequest.from_response(
             response,
             #meta={'proxy': 'http://localhost:8888'},
@@ -104,7 +109,7 @@ class GeocachingSpider(scrapy.Spider):
                 'ctl00$ContentBody$uxTaxonomies': '9a79e6ce-3344-409c-bbe9-496530baf758',
                 'ctl00$ContentBody$LocationPanel1$ddSearchType': 'SC',
                 'ctl00$ContentBody$LocationPanel1$CountryStateSelector1$selectCountry': '73',
-                'ctl00$ContentBody$LocationPanel1$CountryStateSelector1$selectState': '414',
+                'ctl00$ContentBody$LocationPanel1$CountryStateSelector1$selectState': '487',
                 'ctl00$ContentBody$LocationPanel1$btnLocale': 'Recherche+de+géocaches'},
             callback=self.parse_pages
         )
@@ -174,7 +179,7 @@ class GeocachingSpider(scrapy.Spider):
             infoPage = response.xpath('//td[@class="PageBuilderWidget"]/span/b[3]//text()')
             print("PAGE NOT IN RESPONSE META KEY")
             numberOfPage = int(infoPage.extract_first())
-            response.meta['page'] = [1, numberOfPage]
+            response.meta['page'] = [1, 3]#numberOfPage
 
             yield scrapy.FormRequest.from_response(
                 response,
