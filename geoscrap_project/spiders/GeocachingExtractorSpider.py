@@ -53,7 +53,7 @@ class GeocachingExtractorSpider(scrapy.Spider):
             response,
             meta=meta,
             formxpath="//form[@action='/account/signin']",
-            formdata={'__RequestVerificationToken':token,'UsernameOrEmail': 'reyman64', 'Password': 'H67y9!CSJw'},
+            formdata={'__RequestVerificationToken':token,'UsernameOrEmail': 'myusername', 'Password': 'mypassword'},
             callback=self.after_login
         )
 
