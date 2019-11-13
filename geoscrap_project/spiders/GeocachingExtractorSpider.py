@@ -6,7 +6,6 @@ from bs4 import BeautifulSoup
 import cfscrape
 import json
 import jmespath
-from fake_useragent import UserAgent
 import pendulum
 import random
 from urllib.parse import urlparse
@@ -24,7 +23,7 @@ class GeocachingExtractorSpider(scrapy.Spider):
 
     custom_settings = {
         'CONCURRENT_REQUESTS': '1',
-        'DOWNLOAD_DELAY': '3',
+        'DOWNLOAD_DELAY': '2',
         'COOKIES_ENABLED': True,
         'ITEM_PIPELINES': {
             'geoscrap_project.pipelines.FullInfoJsonPipeline': 200,
@@ -39,7 +38,6 @@ class GeocachingExtractorSpider(scrapy.Spider):
         print(urls)
         self.urls = urls
 
-
     def parse(self, response):
 
         meta = response.meta
@@ -53,7 +51,7 @@ class GeocachingExtractorSpider(scrapy.Spider):
             response,
             meta=meta,
             formxpath="//form[@action='/account/signin']",
-            formdata={'__RequestVerificationToken':token,'UsernameOrEmail': 'myusername', 'Password': 'mypassword'},
+            formdata={'__RequestVerificationToken':token,'UsernameOrEmail': 'xxx', 'Password': 'xxx'},
             callback=self.after_login
         )
 

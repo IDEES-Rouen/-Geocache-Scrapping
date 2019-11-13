@@ -6,7 +6,6 @@ from bs4 import BeautifulSoup
 import cfscrape
 import json
 import jmespath
-from fake_useragent import UserAgent
 import pendulum
 from pathlib import Path
 import random
@@ -14,10 +13,7 @@ from urllib.parse import urlparse
 
 
 class GeocachingSpider(scrapy.Spider):
-    name = "geocaching"
-
-    p = Path('.').resolve()
-    dataFolder = p.parent.joinpath("/data")
+    name = "GeocachingSpider"
 
     start_urls = ['https://www.geocaching.com/account/signin']
 
@@ -32,10 +28,7 @@ class GeocachingSpider(scrapy.Spider):
         'HTTPPROXY_ENABLED': False,
         'REDIRECT_ENABLED': True
     }
-
-
     allowed_domains = ['geocaching.com']
-    ua = UserAgent()
 
     def parse(self, response):
 
@@ -50,7 +43,7 @@ class GeocachingSpider(scrapy.Spider):
             response,
             meta = meta,
             formxpath="//form[@action='/account/signin']",
-            formdata={'__RequestVerificationToken':token,'UsernameOrEmail': 'reyman64', 'Password': 'H67y9!CSJw'},
+            formdata={'__RequestVerificationToken':token,'UsernameOrEmail': 'xxx', 'Password': 'xxx'},
             callback=self.after_login
         )
 

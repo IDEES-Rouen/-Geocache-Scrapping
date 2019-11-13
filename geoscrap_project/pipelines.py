@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 
 import pymongo
-from scrapy import log
+
+from scrapy.exceptions import DropItem
 from scrapy.exporters import JsonLinesItemExporter
 import os
 from pathlib import Path
+import logging
 
 class MongoPipeline(object):
 
@@ -29,7 +31,6 @@ class MongoPipeline(object):
         self.client.close()
 
     def process_item(self, item, spider):
-        log.msg("Item wrote to MongoDB database")
         self.db[self.collection_name].insert(dict(item))
         return item
 
@@ -52,6 +53,9 @@ class FullInfoJsonPipeline(object):
         return item
 
 class JsonPipeline(object):
+
+    logger = logging.getLogger()
+
     def __init__(self):
         print("JsonPipeline")
         p = Path('.') / 'data' / 'geocaches.json'
@@ -64,5 +68,12 @@ class JsonPipeline(object):
         self.file.close()
 
     def process_item(self, item, spider):
-        self.exporter.export_item(item)
-        return item
+        self.logger.debug(" ** PROCESS ** ")
+        if len(item) ==0:
+            self.logger.debug("EMPTY")
+            raise DropItem()
+        else:
+            self.logger.debug("NOT EMPTY")
+            self.exporter.export_item(item)
+            return item
+

@@ -1,0 +1,17 @@
+version: '3.4'
+services:
+  scrap_service:
+        build: .
+        container_name: "geocache_scrap"
+        user: "${UID}:${GID}"
+        networks:
+          - geo_scrappy
+        volumes:
+          - geo_scrapy_volume:/home/scrapy/geoscrap/data
+
+volumes:
+  geo_scrapy_volume:
+
+networks:
+  geo_scrappy:
+    driver: bridge

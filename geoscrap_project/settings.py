@@ -15,9 +15,6 @@ BOT_NAME = 'geoscrap_project'
 SPIDER_MODULES = ['geoscrap_project.spiders']
 NEWSPIDER_MODULE = 'geoscrap_project.spiders'
 
-LOG_ENABLED = True
-LOG_LEVEL = 'DEBUG'
-
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = 'flight_project (+http://www.yourdomain.com)'
 
@@ -74,7 +71,7 @@ RANDOM_UA_PER_PROXY = True
 DOWNLOADER_MIDDLEWARES = {
     'scrapy.downloadermiddlewares.useragent.UserAgentMiddleware': None,
     'scrapy.downloadermiddlewares.httpcompression.HttpCompressionMiddleware': 810,
-    # 'scrapy_fake_useragent.middleware.RandomUserAgentMiddleware': 50
+    'scrapy_fake_useragent.middleware.RandomUserAgentMiddleware': 400,
     #'flight_project.middlewares.ProxyMiddleware': 100,
     'scrapy.downloadermiddlewares.httpproxy.HttpProxyMiddleware':1,
     #scrapy.downloadermiddlewares.redirect.RedirectMiddleware:2,
