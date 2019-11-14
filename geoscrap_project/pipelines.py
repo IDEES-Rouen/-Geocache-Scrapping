@@ -7,38 +7,18 @@ from scrapy.exporters import JsonLinesItemExporter
 import os
 from pathlib import Path
 import logging
+import pendulum
 
-class MongoPipeline(object):
-
-    collection_name = 'scrapy_items'
-
-    def __init__(self, mongo_uri, mongo_db):
-        self.mongo_uri = mongo_uri
-        self.mongo_db = mongo_db
-
-    @classmethod
-    def from_crawler(cls, crawler):
-        return cls(
-            mongo_uri=crawler.settings.get('MONGO_URI'),
-            mongo_db=crawler.settings.get('MONGO_DATABASE', 'items')
-        )
-
-    def open_spider(self, spider):
-        self.client = pymongo.MongoClient(self.mongo_uri)
-        self.db = self.client[self.mongo_db]
-
-    def close_spider(self, spider):
-        self.client.close()
-
-    def process_item(self, item, spider):
-        self.db[self.collection_name].insert(dict(item))
-        return item
-
+def get_timestamp():
+    aDate = pendulum.today()
+    return aDate.timestamp()
 
 class FullInfoJsonPipeline(object):
     def __init__(self):
         print("FullInfoJsonPipeline")
-        p = Path('.') / 'data' / 'fullGeochache.json'
+        name = 'fullgeocaches'+str(get_timestamp())+'.json'
+
+        p = Path('.') / 'data' / name
 
         self.file = p.open('wb')
         self.exporter = JsonLinesItemExporter(self.file, encoding='utf-8', ensure_ascii=False)
@@ -58,7 +38,8 @@ class JsonPipeline(object):
 
     def __init__(self):
         print("JsonPipeline")
-        p = Path('.') / 'data' / 'geocaches.json'
+        name = 'geocaches'+str(get_timestamp())+'.json'
+        p = Path('.') / 'data' / name
         self.file = p.open('wb')
         self.exporter = JsonLinesItemExporter(self.file, encoding='utf-8', ensure_ascii=False)
         self.exporter.start_exporting()
